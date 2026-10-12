@@ -1,0 +1,58 @@
+id: com.acrogenesis.pgOrbit
+runtime: org.gnome.Platform
+runtime-version: "51"
+sdk: org.gnome.Sdk
+command: pg_orbit
+
+finish-args:
+  # GTK3 window on Wayland, or X11 where Wayland isn't available
+  - --share=ipc
+  - --socket=fallback-x11
+  - --socket=wayland
+  # Flutter renders with OpenGL
+  - --device=dri
+  # Queries go straight from the app to the user's databases and SSH hosts
+  - --share=network
+  # CSV exports are saved to the Downloads folder
+  - --filesystem=xdg-download
+  # On Omarchy the app follows the desktop theme: it reads and watches
+  # current/theme/colors.toml in these directories
+  - --filesystem=~/.local/state/omarchy:ro
+  - --filesystem=~/.config/omarchy:ro
+  # Connection passwords and SSH keys are kept in the system keyring
+  # (Secret Service, through libsecret)
+  - --talk-name=org.freedesktop.secrets
+
+modules:
+  - name: pg_orbit
+    buildsystem: simple
+    sources:
+      # Official release tarball published with the v2.6.0 GitHub release:
+      # the prebuilt Flutter/GTK3 bundle (pg_orbit, lib/, data/), share/ with
+      # the desktop entry and icons, and LICENSE. PG Orbit is closed-source;
+      # this is the vendor's own release artifact.
+      - type: archive
+        url: https://github.com/acrogenesis/pg-orbit-releases/releases/download/v2.6.0/pg-orbit-2.6.0-linux-x64.tar.gz
+        sha256: b11c79b17d82d1a9950dee6f54a9dc77dbbf1ac9f7d2755c9e34cef71af966af
+        strip-components: 1
+      # AppStream metainfo, published by upstream with the same release.
+      - type: file
+        url: https://github.com/acrogenesis/pg-orbit-releases/releases/download/v2.6.0/com.acrogenesis.pgOrbit.appdata.xml
+        sha256: b27cebbb174c5dbca571089039c151a3340887d789ae97e4974d1412a14d0482
+        dest-filename: com.acrogenesis.pgOrbit.appdata.xml
+    build-commands:
+      # The Flutter bundle: binary, its libraries, and assets.
+      - install -Dm755 -t /app/bin pg_orbit
+      - cp -a lib /app/bin/
+      - cp -a data /app/bin/
+      # Desktop entry and icons.
+      - install -Dm644 share/applications/com.acrogenesis.pgOrbit.desktop /app/share/applications/com.acrogenesis.pgOrbit.desktop
+      - |
+        for size in 16 32 64 128 256 512; do
+          install -Dm644 "share/icons/hicolor/${size}x${size}/apps/com.acrogenesis.pgOrbit.png" \
+            "/app/share/icons/hicolor/${size}x${size}/apps/com.acrogenesis.pgOrbit.png"
+        done
+      # AppStream metainfo.
+      - install -Dm644 com.acrogenesis.pgOrbit.appdata.xml /app/share/metainfo/com.acrogenesis.pgOrbit.metainfo.xml
+      # License.
+      - install -Dm644 LICENSE /app/share/licenses/com.acrogenesis.pgOrbit/LICENSE
